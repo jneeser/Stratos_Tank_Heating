@@ -15,7 +15,8 @@ bounds = [0.00001, 0.01]
 
 tank = Tank(k_carbon, t_carbon, k_alu, t_alu, A_tank)
 lamp = Lamp(emissivity, lamp_temp, SF)
-n2o = N2O()             
+n2o = N2O()      
+
 
 def func(shape_factor):
     lamp = Lamp(emissivity, lamp_temp, shape_factor)
