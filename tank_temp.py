@@ -75,8 +75,6 @@ class Thermals():
             else:
                 Q_evap = 0
 
-            #Q_conv = self.conv_heat_transfer(self.T_tank[i-1])
-
             self.T_tank[i] = self.T_tank[i-1] + self.dt * ((deltaT/R  - Q_evap) * 1 / self.rho_n2o[i] / self.cp_n2o[i] / self.tank.V)
 
             if self.n2o.p(self.T_tank[i]) > cutoff:
