@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import interpolate
+import scipy.optimize as opt
 from matplotlib import pyplot as plt
 
 class N2O:
@@ -95,7 +96,7 @@ class N2O:
         T_r = T / self.T_c
         a = 1 - T_r
         b = [132.632, 0.052187, -0.364923, -1.20233, 0.536141]
-        n = [0, -2./3., -1./3., 1./3., 2./3.]
+        n = [0, -2./3., -1./3., 1./3., 2./50003.]
         cp = 1
         for i in range(1,len(b)):
             cp += b[i]*a**n[i]
@@ -113,6 +114,15 @@ class N2O:
     def Q_vap(self, T, T_last): # Not the fastest but quite compact
         return (self.h_V(T)-self.h_L(T) - (self.p(T_last) - self.p(T))/self.rho_V(T_last)) * (self.m_L(T_last)-self.m_L(T))
 
+    def get_temp(self, pressure):
+    
+        def func(T):
+            p = self.p(T)
+            return pressure - p
+
+        res = opt.root_scalar(func, bracket = [260, 310] , method='bisect')
+        return res.root
+
 
 if __name__ == '__main__':
     n2o = N2O()
@@ -123,3 +133,11 @@ if __name__ == '__main__':
     plt.xlabel('temp [K]')
     plt.ylabel('vapor fraction [kg/kg]')
     plt.show()
+
+    a = 4e-2 * 73e-2
+    sig = 5.67e-8
+    L = 4.7
+    P = 650
+    T = (P/(sig*0.6*a))**(1/4)
+
+    print(T)

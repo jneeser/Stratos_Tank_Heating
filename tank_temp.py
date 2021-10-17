@@ -12,11 +12,13 @@ class Tank():
         self.V = 0.259      # m3
 
 class Lamp():
-    def __init__(self, eps, Temp, shape_factor):
+    def __init__(self, eps, Temp, shape_factor, n, A):
         self.eps = eps
         self.T = Temp
         self.shape_factor = shape_factor
         self.sig = 5.67e-8
+        self.n = n
+        self.A = A
 
 # dummy class 
 class N2O():
@@ -37,9 +39,17 @@ class Thermals():
 
     def thermal_res(self, T):
         h_r = 4 * self.lamp.eps * self.lamp.sig * self.lamp.shape_factor * ((T + self.lamp.T)/2)**3 
-        R = (1/h_r + self.tank.t_c/self.tank.k_c + self.tank.t_a/self.tank.k_a) * 1/self.tank.A
+        #h_r_out = 4 * self.lamp.eps * self.lamp.sig * ((T + self.T_amb)/2)**3 
+        R = (1/h_r/(self.lamp.A*self.lamp.n) + self.tank.t_c/self.tank.k_c/self.tank.A + self.tank.t_a/self.tank.k_a/self.tank.A) 
         
         return R
+
+    def rad_out(self, T):
+        h_r_out = 4 * self.lamp.sig * 0.01 * ((T + self.T_amb)/2)**3 
+        R = (1/h_r_out/self.tank.A + self.tank.t_c/self.tank.k_c/self.tank.A + self.tank.t_a/self.tank.k_a/self.tank.A) 
+        
+        return R
+        
 
     def get_fluid_properties(self, T):
         vap_frac = self.n2o.vap_mass_frac(T)            # mass fraction of vapor for mass averaged density and Cp
@@ -54,20 +64,25 @@ class Thermals():
     def forward_euler(self, cutoff):
         self.time = np.arange(0, self.T, self.dt)
         self.T_tank = np.ones(len(self.time))*self.T_amb
+        self.P_tank = np.ones(len(self.time))*0
         self.rho_n2o = np.ndarray(len(self.time))
         self.cp_n2o = np.ndarray(len(self.time))
         self.vap_frac = np.ndarray(len(self.time))
 
         self.T_tank[0] = self.T_amb
         self.rho_n2o[0], self.cp_n2o[0], self.vap_frac[0] = self.get_fluid_properties(self.T_tank[0])
+        self.P_tank[0] = self.n2o.p(self.T_tank[0])
 
         for i in range(1, len(self.time)):
             R = self.thermal_res(self.T_tank[i-1])
             deltaT = self.lamp.T - self.T_tank[i-1]
+            R_out = self.rad_out(self.T_tank[i-1])
+            deltaT_out = self.T_amb - self.T_tank[i-1]
 
             self.rho_n2o[i], self.cp_n2o[i], self.vap_frac[i] = self.get_fluid_properties(self.T_tank[i-1])
             
             evap_mass = (self.vap_frac[i] - self.vap_frac[i-1]) * self.tank.m
+
 
             if self.evap:
                 Q_evap = self.n2o.hvap * evap_mass 
@@ -75,7 +90,8 @@ class Thermals():
             else:
                 Q_evap = 0
 
-            self.T_tank[i] = self.T_tank[i-1] + self.dt * ((deltaT/R  - Q_evap) * 1 / self.rho_n2o[i] / self.cp_n2o[i] / self.tank.V)
+            self.T_tank[i] = self.T_tank[i-1] + self.dt * ((deltaT/R + deltaT_out/R_out - Q_evap) * 1 / self.rho_n2o[i] / self.cp_n2o[i] / self.tank.V)
+            self.P_tank[i] = self.n2o.p(self.T_tank[i])
 
             if self.n2o.p(self.T_tank[i]) > cutoff:
                 print('max pressure reached after: ', self.time[i], ' seconds')
